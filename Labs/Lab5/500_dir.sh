@@ -8,3 +8,4 @@ for i in `seq 1 500`; do
     echo "line 4" >> ./dir_${i}/test.txt
     echo "line 5" >> ./dir_${i}/test.txt
 done
+
