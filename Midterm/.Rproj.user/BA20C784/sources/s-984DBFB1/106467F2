@@ -3,22 +3,22 @@
     "path": "C:/Users/joshu/Github/ClassRepositories/Computing-For-Scientists-CS-510/Midterm/midterm_first_draft.R",
     "project_path": "midterm_first_draft.R",
     "type": "r_source",
-    "hash": "0",
+    "hash": "322515584",
     "contents": "",
-    "dirty": true,
+    "dirty": false,
     "created": 1603397819851.0,
     "source_on_save": false,
     "relative_order": 1,
     "properties": {
-        "cursorPosition": "31,0",
-        "scrollLine": "0"
+        "cursorPosition": "72,0",
+        "scrollLine": "59"
     },
     "folds": "",
-    "lastKnownWriteTime": 1603397715,
+    "lastKnownWriteTime": 1603409926,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1603397825502,
+    "last_content_update": 1603409926994,
     "read_only": false,
     "read_only_alternatives": []
 }

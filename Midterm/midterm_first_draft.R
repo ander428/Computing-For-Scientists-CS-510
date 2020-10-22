@@ -4,7 +4,7 @@ library(rstanarm)
 options(scipen = 999)
 set.seed(1818)
 
-kickstarters <- read.csv("Midterm/ks-projects-201801.csv")
+kickstarters <- read.csv("ks-projects-201801.csv")
 
 # view data frame structure
 kickstarters %>% glimpse()
@@ -29,10 +29,47 @@ linear_regression <- function(f, df) {
 }
 
 
+# create regression formula
+formula_1 <- usd_pledged_real ~ backers + usd_goal_real + length
 
+# bootstrap classical linear regression
+n_boot <- 1000
+n_samples <- 4000
+mod_boot <- data.frame()
+for(i in 1:n_boot) {
+  idx <- sample(1:nrow(kickstarters_clean), n_samples)
+  mod_temp <- linear_regression(formula_1, kickstarters_clean %>% slice(idx))
+  mod_boot <- rbind(mod_boot, t(mod_temp))
+}
 
+lm_boot_summary <- function(lm_boot) {
+  summary_df <- data.frame(
+    mean = sapply(lm_boot, mean),
+    median = sapply(lm_boot, median),
+    sd = sapply(lm_boot, sd),
+    row.names = names(lm_boot))
+  print(summary_df)
+  summary_df
+}
 
+predict_lm <- function(lm_boot, newdata) {
+  preds <- NULL
+  X <- newdata %>% select(rownames(lm_boot[-1,]))
+  for(i in 1:nrow(X)) {
+    preds$mean[i] <- lm_boot[1,1] # mean intercept
+    preds$median[i] <- lm_boot[1,2] # median intercept
+    for(j in ncol(X)) {
+      preds$mean[i] <- preds$mean[i] + (lm_boot[j+1, 1] * X[i,j])
+      preds$median[i] <- preds$median[i] + (lm_boot[j+1, 2] * X[i,j])
+    }
+  }
+  preds
+}
 
+rm(kickstarters, mod_temp) # clear memory of uneeded variabels
+
+preds_boot <- predict_lm(lm_boot_summary(mod_boot), kickstarters_clean)
+true_vals <- kickstarters_clean$usd_pledged_real
 
 
       
