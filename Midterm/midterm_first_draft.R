@@ -30,19 +30,40 @@ lm_summary <- function(lm_mod) {
 }
 
 # make linear regression predictions using coefs
-# type 0 = sampling regression method
-# type 1 = classical regression method
-predict_lm <- function(lm_boot, newdata, type) {
+# type 0 == classical
+# type 1 == sampling method
+predict_lm <- function(lm_mod, newdata, type) {
   preds <- NULL
-  X <- newdata %>% select(rownames(lm_boot[-1,])) # only grab relevant columns
   
-  for(i in 1:nrow(X)) {
-    preds$mean[i] <- lm_boot[1,1] # mean intercept
-    preds$median[i] <- lm_boot[1,2] # median intercept
-    for(j in 1:ncol(X)) {
-      preds$mean[i] <- preds$mean[i] + (lm_boot[j+1, 1] * X[i,j])
-      preds$median[i] <- preds$median[i] + (lm_boot[j+1, 2] * X[i,j])
+  if(type == 0) {
+    X <- newdata %>% select(rownames(lm_mod)[-1]) # remove intercept
+    
+    for(i in 1:nrow(X)) {
+      preds[i] <- lm_mod[1]
+      
+      for(j in 1:ncol(X)) {
+        preds[i] <- preds[i] + (lm_mod[j+1] * X[i,j])
+      }
     }
+  }
+  
+  # sampling
+  else if(type == 1) {
+    X <- newdata %>% select(rownames(lm_mod[-1,])) # remove intercept
+    
+    for(i in 1:nrow(X)) {
+      preds$mean[i] <- lm_mod[1,1] # mean intercept
+      preds$median[i] <- lm_mod[1,2] # median intercept
+      
+      for(j in 1:ncol(X)) {
+        preds$mean[i] <- preds$mean[i] + (lm_mod[j+1, 1] * X[i,j])
+        preds$median[i] <- preds$median[i] + (lm_mod[j+1, 2] * X[i,j])
+      }
+    }
+  }
+  
+  else {
+    print("invalid type")
   }
   preds
 }
@@ -86,19 +107,18 @@ summary(bayes_mod)
 rm(kickstarters, mod_temp) # clear memory of uneeded variabels
 
 # predictions
-lm_coefs <- t(lm_mod)
-preds_lm <- predict_lm(lm_coefs, kickstarters_clean)
-print(preds_lm)
+preds_lm <- predict_lm(lm_mod, kickstarters_clean, type = 0) # classical
 
 boot_coefs <- lm_summary(mod_boot)
-preds_boot <- predict_lm(boot_coefs, kickstarters_clean)
+preds_boot <- predict_lm(boot_coefs, kickstarters_clean, type = 1) # bootstrap
 
 bayes_coefs <- data.frame(mean = bayes_mod$stan_summary[1:length(kickstarters_clean),1],
                           median = bayes_mod$coefficients)
 
-preds_bayes <- predict_lm(bayes_coefs, kickstarters_clean)
+preds_bayes <- predict_lm(bayes_coefs, kickstarters_clean, type = 1) # bayesian
 
 preds_df <- data.frame(
+  classical = preds_lm,
   boot_mean = preds_boot$mean,
   boot_median = preds_boot$median,
   bayes_mean = preds_bayes$mean,
@@ -106,26 +126,36 @@ preds_df <- data.frame(
   true = kickstarters_clean$usd_pledged_real
 )
 
-metric_set(kickstarters_clean, preds_df$true, preds_boot$mean)
+### performance metrics ###
+
 m_set <- metric_set(rsq, rmse, mae)
+
+m_set(kickstarters_clean, preds_df$true, preds_df$classical)
+# A tibble: 3 x 3
+#   .metric .estimator .estimate
+#   <chr>   <chr>          <dbl>
+# 1 rsq     standard       0.566
+# 2 rmse    standard   59910.   
+# 3 mae     standard    5892.  
+
 m_set(kickstarters_clean, preds_df$true, preds_df$boot_mean)
-# .metric .estimator .estimate
-# <chr>   <chr>          <dbl>
+#   .metric .estimator .estimate
+#   <chr>   <chr>          <dbl>
 # 1 rsq     standard       0.353
 # 2 rmse    standard   85129.   
 # 3 mae     standard    7274.  
 
 m_set(kickstarters_clean, preds_df$true, preds_df$boot_median)
-# .metric .estimator .estimate
-# <chr>   <chr>          <dbl>
+#   .metric .estimator .estimate
+#   <chr>   <chr>          <dbl>
 # 1 rsq     standard       0.542
 # 2 rmse    standard   61707.   
 # 3 mae     standard    5461. 
 
 m_set(kickstarters_clean, preds_df$true, preds_df$bayes_mean)
 # A tibble: 3 x 3
-# .metric .estimator .estimate
-# <chr>   <chr>          <dbl>
+#   .metric .estimator .estimate
+#   <chr>   <chr>          <dbl>
 # 1 rsq     standard       0.566
 # 2 rmse    standard   59910.   
 # 3 mae     standard    5893.   
@@ -133,9 +163,11 @@ m_set(kickstarters_clean, preds_df$true, preds_df$bayes_mean)
 m_set(kickstarters_clean, preds_df$true, preds_df$bayes_median)
 # A tibble: 3 x 3
 # .metric .estimator .estimate
-# <chr>   <chr>          <dbl>
+#   <chr>   <chr>          <dbl>
 # 1 rsq     standard       0.566
 # 2 rmse    standard   59910.   
 # 3 mae     standard    5893.
 
-# All regression methods seemed to 
+# All linear regression methods seemed to produce similar results with the exception of the bootstap model
+# that uses the mean coefficients. Interestingly, the standard classical model has nearly identical results
+# to the bayesian model.
